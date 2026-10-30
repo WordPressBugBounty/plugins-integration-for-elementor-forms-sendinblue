@@ -5,9 +5,9 @@
  * Description: Easily connect and send data to sendinblue / Brevo from elementor forms.
  * Author: Webtica
  * Author URI: https://webtica.be/
- * Version: 2.1.4
- * Elementor tested up to: 4.3.0
- * Elementor Pro tested up to: 4.3.0
+ * Version: 2.1.5
+ * Elementor tested up to: 4.3.5
+ * Elementor Pro tested up to: 4.3.2
  */
 
 // Exit if accessed directly

@@ -14,6 +14,19 @@ class Sendinblue_Attributes_Manager {
 	private static $instance = null;
 
 	/**
+	 * Timeout (seconds) for the attributes request.
+	 * This request runs synchronously while the Elementor editor loads,
+	 * so it must stay well below typical gateway timeouts (60s).
+	 */
+	const REQUEST_TIMEOUT = 15;
+
+	/**
+	 * How long (seconds) a failed attributes request is cached,
+	 * so a broken API key / IP allowlist does not hit Brevo on every editor load.
+	 */
+	const ERROR_CACHE_TTL = 300;
+
+	/**
 	 * Get singleton instance
 	 */
 	public static function get_instance() {
@@ -24,30 +37,26 @@ class Sendinblue_Attributes_Manager {
 	}
 
 	/**
-	 * Fetch attributes from Brevo API with pagination
+	 * Fetch all attributes from the Brevo API
+	 *
+	 * The Brevo endpoint GET /v3/contacts/attributes is not paginated: it always
+	 * returns every attribute in the account and ignores limit/offset.
 	 *
 	 * @param string $api_key The Brevo API key
-	 * @param int $limit Number of attributes to fetch (1-100)
-	 * @param int $offset Offset for pagination
+	 * @param int $limit Deprecated, kept for backwards compatibility (not sent to the API)
+	 * @param int $offset Deprecated, kept for backwards compatibility (not sent to the API)
 	 * @return array|WP_Error Array of attributes or error
 	 */
-	public function fetch_attributes( $api_key, $limit = 50, $offset = 0 ) {
+	public function fetch_attributes( $api_key, $limit = 0, $offset = 0 ) {
 
 		if ( empty( $api_key ) ) {
 			return new WP_Error( 'missing_api_key', __( 'API key is required', 'sendinblue-elementor-integration' ) );
 		}
 
-		// Validate pagination parameters
-		$limit = max( 1, min( 100, intval( $limit ) ) );
-		$offset = max( 0, intval( $offset ) );
-
-		$url = add_query_arg( array(
-			'limit' => $limit,
-			'offset' => $offset,
-		), 'https://api.brevo.com/v3/contacts/attributes' );
+		$url = 'https://api.brevo.com/v3/contacts/attributes';
 
 		$response = wp_remote_get( $url, array(
-			'timeout' => 45,
+			'timeout' => self::REQUEST_TIMEOUT,
 			'headers' => array(
 				'accept' => 'application/json',
 				'api-key' => $api_key,
@@ -68,7 +77,7 @@ class Sendinblue_Attributes_Manager {
 		$body = wp_remote_retrieve_body( $response );
 		$data = json_decode( $body, true );
 
-		if ( ! isset( $data['attributes'] ) ) {
+		if ( ! is_array( $data ) || ! isset( $data['attributes'] ) || ! is_array( $data['attributes'] ) ) {
 			return new WP_Error( 'invalid_response', __( 'Invalid API response', 'sendinblue-elementor-integration' ) );
 		}
 
@@ -76,41 +85,29 @@ class Sendinblue_Attributes_Manager {
 	}
 
 	/**
-	 * Fetch all attributes with automatic pagination
+	 * Fetch all attributes (single request, the Brevo endpoint is not paginated)
+	 *
+	 * Previous versions looped with limit/offset. Brevo ignores those parameters,
+	 * so accounts with 100+ attributes got the same batch back forever, which
+	 * caused an endless loop and 504 timeouts in the Elementor editor.
 	 *
 	 * @param string $api_key The Brevo API key
-	 * @param int $max_items Maximum number of items to fetch (0 for all)
+	 * @param int $max_items Maximum number of items to return (0 for all)
 	 * @return array|WP_Error Array of attributes or error
 	 */
 	public function fetch_all_attributes( $api_key, $max_items = 0 ) {
 
-		$all_attributes = array();
-		$offset = 0;
-		$limit = 100;
-		$fetched_count = 0;
+		$attributes = $this->fetch_attributes( $api_key );
 
-		do {
-			$attributes = $this->fetch_attributes( $api_key, $limit, $offset );
+		if ( is_wp_error( $attributes ) ) {
+			return $attributes;
+		}
 
-			if ( is_wp_error( $attributes ) ) {
-				return $attributes;
-			}
+		if ( $max_items > 0 ) {
+			return array_slice( $attributes, 0, (int) $max_items, true );
+		}
 
-			// Use + operator to preserve attribute names as keys
-			$all_attributes = $all_attributes + $attributes;
-
-			$batch_size = count( $attributes );
-			$fetched_count += $batch_size;
-			$offset += $limit;
-
-			// Check if we reached max items
-			if ( $max_items > 0 && $fetched_count >= $max_items ) {
-				break;
-			}
-
-		} while ( $batch_size >= $limit );
-
-		return $all_attributes;
+		return $attributes;
 	}
 
 	/**
@@ -176,6 +173,11 @@ class Sendinblue_Attributes_Manager {
 			if ( webtica_sendinblue_free_debug_enabled() ) {
 				error_log( 'Sendinblue Attributes Manager - Error fetching attributes: ' . $attributes->get_error_message() );
 			}
+
+			// Cache the failure briefly so the editor does not retry (and wait) on every load.
+			// "Clear Cache & Refresh" in the form action removes this immediately.
+			set_transient( $cache_key, array(), self::ERROR_CACHE_TTL );
+
 			return array();
 		}
 

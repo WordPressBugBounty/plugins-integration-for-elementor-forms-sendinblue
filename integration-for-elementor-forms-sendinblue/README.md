@@ -51,6 +51,15 @@ Select SMS or WHATSAPP as the attribute in either the Name or Lastname field map
 
 ## Changelog
 
+### 2.1.5 - 30-10-2026
+* Fixed the Elementor editor hanging (504 timeout) on Brevo accounts with 100 or more contact attributes: the attributes are now fetched in a single request, as the Brevo attributes endpoint is not paginated
+* A failed attributes request is now cached for 5 minutes instead of being retried on every editor load
+* Shorter timeout (15s) for fetching attributes so the editor cannot hang on a slow Brevo response
+* Stricter validation of the Brevo attributes response
+* Tested Elementor up to 4.3.5
+* Tested Elementor PRO up to 4.3.2
+* Tested WordPress up to 7.1.4
+
 ### 2.1.4 - 23-09-2026
 * Fixed Brevo boolean attributes staying empty: values like "true", "Yes", "1", "on", "oui" and "ja" are now sent as a real JSON boolean (Brevo silently ignores string values for boolean attributes)
 * Number/float attributes are now sent as numbers ("12,5" becomes 12.5)

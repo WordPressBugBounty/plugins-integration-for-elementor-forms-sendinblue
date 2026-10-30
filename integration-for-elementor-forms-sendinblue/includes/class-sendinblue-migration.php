@@ -16,7 +16,7 @@ class Sendinblue_Migration {
 	 * The authoritative version is read from the main plugin file header via
 	 * get_current_version() so this constant can never drift out of sync again.
 	 */
-	const CURRENT_VERSION = '2.1.4';
+	const CURRENT_VERSION = '2.1.5';
 
 	/**
 	 * Option name for storing plugin version

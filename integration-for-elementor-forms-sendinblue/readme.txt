@@ -2,9 +2,9 @@
 Contributors: webtica
 Tags: sendinblue, brevo, elementor, elementor pro, forms
 Requires at least: 5.0
-Tested up to: 7.1.2
+Tested up to: 7.1.4
 Requires PHP: 7.0
-Stable tag: 2.1.4
+Stable tag: 2.1.5
 License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -60,6 +60,15 @@ Yes, Sendinblue has changed it name and branding to Brevo. The integration will 
 Select SMS or WHATSAPP as the attribute in either the Name or Lastname field mapping. When selected, a country code field will automatically appear where you can set your default country code (e.g., 32 for Belgium, 1 for USA). The plugin will automatically format phone numbers from local format (e.g., 0471234567) to international format (e.g., 32471234567).
 
 == Changelog ==
+
+= 2.1.5 - 2026-10-30 =
+* Fixed the Elementor editor hanging (504 timeout) on Brevo accounts with 100 or more contact attributes: the attributes are now fetched in a single request, as the Brevo attributes endpoint is not paginated
+* A failed attributes request is now cached for 5 minutes instead of being retried on every editor load
+* Shorter timeout (15s) for fetching attributes so the editor cannot hang on a slow Brevo response
+* Stricter validation of the Brevo attributes response
+* Tested Elementor up to 4.3.5
+* Tested Elementor PRO up to 4.3.2
+* Tested WordPress up to 7.1.4
 
 = 2.1.4 - 2026-09-23 =
 * Fixed Brevo boolean attributes staying empty: values like "true", "Yes", "1", "on", "oui" and "ja" are now sent as a real JSON boolean (Brevo silently ignores string values for boolean attributes)
